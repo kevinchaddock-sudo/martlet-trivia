@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍺 Martlet Trivia - Player</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8B4513 0%, #654321 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            color: #8B4513;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #8B4513;
+            box-shadow: 0 0 8px rgba(139, 69, 19, 0.3);
+        }
+
+        button {
+            width: 100%;
+            background: #8B4513;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #654321;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .question-box {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid #DAA520;
+        }
+
+        .question-box h2 {
+            color: #8B4513;
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .option-btn {
+            padding: 15px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-align: center;
+            color: black;
+        }
+
+        .option-btn:hover {
+            border-color: #2196F3;
+            background: #f9f9f9;
+        }
+
+        .option-btn.selected {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .status.waiting {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .status.submitted {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .team-name-display {
+            text-align: center;
+            padding: 10px;
+            background: #DAA520;
+            color: white;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .result-display {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .result-display.correct {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+
+        .result-display.incorrect {
+            background: #ffebee;
+            border: 2px solid #f44336;
+        }
+
+        .result-display h3 {
+            font-size: 28px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <div class="header">
+                <h1>🍺</h1>
+                <h2 style="color: #8B4513; margin-bottom: 5px;">Martlet Trivia</h2>
+                <p>Player</p>
+            </div>
+
+            <!-- Join Screen -->
+            <div id="joinScreen">
+                <div class="form-group">
+                    <label>Your Team Name</label>
+                    <input type="text" id="teamName" placeholder="e.g., The Hopsters" autofocus>
+                </div>
+                <button onclick="joinGame()">Join Game</button>
+            </div>
+
+            <!-- Waiting Screen -->
+            <div id="waitingScreen" class="hidden">
+                <div class="team-name-display" id="displayTeamName"></div>
+                <div class="status waiting">
+                    ⏳ Waiting for host to start the game...
+                </div>
+            </div>
+
+            <!-- Question Screen -->
+            <div id="questionScreen" class="hidden">
+                <div class="team-name-display" id="displayTeamName2"></div>
+                <div class="question-box">
+                    <h2 id="questionText"></h2>
+                    <div class="options" id="optionsContainer"></div>
+                    <button onclick="submitAnswer()" id="submitBtn" disabled>Submit Answer</button>
+                </div>
+                <div class="status" id="answerStatus">Select an answer above</div>
+            </div>
+
+            <!-- Result Screen -->
+            <div id="resultScreen" class="hidden">
+                <div class="team-name-display" id="displayTeamName3"></div>
+                <div class="result-display" id="resultBox"></div>
+                <div class="status waiting">
+                    ⏳ Waiting for next question...
+                </div>
+            </div>
+
+            <!-- Final Results Screen -->
+            <div id="finalScreen" class="hidden">
+                <h2 style="color: #8B4513; text-align: center; margin-bottom: 20px;">Game Over!</h2>
+                <div id="finalResults"></div>
+                <button onclick="location.reload()" style="margin-top: 20px;">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentTeamName = '';
+        let selectedAnswer = null;
+        let playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        socket.on('connect', () => console.log('✓ Connected to server'));
+
+        socket.on('game:started', (data) => {
+            showScreen('questionScreen');
+            displayQuestion(data.question);
+        });
+
+        socket.on('game:next-question', (data) => {
+            selectedAnswer = null;
+            document.getElementById('answerStatus').textContent = 'Select an answer above';
+            document.getElementById('submitBtn').disabled = true;
+            showScreen('questionScreen');
+            displayQuestion(data.question);
+        });
+
+        socket.on('game:answer-revealed', (data) => {
+            showScreen('resultScreen');
+            const resultBox = document.getElementById('resultBox');
+            
+            if (selectedAnswer === data.correctIndex) {
+                resultBox.className = 'result-display correct';
+                resultBox.innerHTML = `
+                    <h3>✓ Correct!</h3>
+                    <p>Answer: <strong>${data.correctAnswer}</strong></p>
+                    <p style="font-size: 24px; margin-top: 10px;">+100 Points</p>
+                `;
+            } else {
+                resultBox.className = 'result-display incorrect';
+                resultBox.innerHTML = `
+                    <h3>✗ Incorrect</h3>
+                    <p>Your answer: ${selectedAnswer !== null ? ['A', 'B', 'C', 'D'][selectedAnswer] : 'Not answered'}</p>
+                    <p>Correct answer: <strong>${data.correctAnswer}</strong></p>
+                `;
+            }
+        });
+
+        socket.on('game:ended', (data) => {
+            showScreen('finalScreen');
+            const final = document.getElementById('finalResults');
+            final.innerHTML = data.scores.map((item, idx) => `
+                <div style="padding: 15px; background: #f0f0f0; border-radius: 8px; margin-bottom: 10px; text-align: center; border-left: 4px solid #8B4513;">
+                    <div style="font-size: 20px; margin-bottom: 5px;">
+                        ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '📍'}
+                    </div>
+                    <div style="font-weight: bold; font-size: 18px; color: #8B4513;">${item.teamName}</div>
+                    <div style="font-size: 24px; color: #DAA520; font-weight: bold;">${item.score}</div>
+                </div>
+            `).join('');
+        });
+
+        function joinGame() {
+            const name = document.getElementById('teamName').value.trim();
+            if (!name) {
+                alert('Please enter a team name');
+                return;
+            }
+            currentTeamName = name;
+            socket.emit('player:join', { teamName: name, playerId });
+            document.getElementById('displayTeamName').textContent = name;
+            document.getElementById('displayTeamName2').textContent = name;
+            document.getElementById('displayTeamName3').textContent = name;
+            showScreen('waitingScreen');
+        }
+
+        function displayQuestion(question) {
+            document.getElementById('questionText').textContent = question.text;
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = question.options.map((opt, idx) => `
+                <button class="option-btn" onclick="selectAnswer(${idx})" id="option_${idx}">
+                    <strong>${String.fromCharCode(65 + idx)})</strong><br>${opt}
+                </button>
+            `).join('');
+        }
+
+        function selectAnswer(idx) {
+            selectedAnswer = idx;
+            document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById('option_' + idx).classList.add('selected');
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('answerStatus').textContent = `Answer selected: ${String.fromCharCode(65 + idx)}`;
+        }
+
+        function submitAnswer() {
+            if (selectedAnswer === null) return;
+            socket.emit('player:answer', {
+                playerId,
+                teamName: currentTeamName,
+                answerIndex: selectedAnswer
+            });
+            document.getElementById('answerStatus').textContent = '✓ Answer submitted!';
+            document.getElementById('submitBtn').disabled = true;
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('[id$="Screen"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
