@@ -383,6 +383,15 @@
         <!-- Game Controls -->
         <div class="panel full-width hidden" id="gamePanel">
             <h2 id="questionNumber" style="text-align: center; font-size: 20px;">Question 1</h2>
+            
+            <!-- Question Display -->
+            <div style="background: #f9f9f9; padding: 12px; border-radius: 5px; margin-bottom: 12px; border-left: 4px solid #DAA520; max-height: 300px; overflow-y: auto;">
+                <h3 id="questionDisplay" style="color: #8B4513; margin-bottom: 8px; font-size: 16px;">Loading question...</h3>
+                <div id="optionsDisplay" style="margin-top: 8px;">
+                    <p style="color: #999;">Waiting for options...</p>
+                </div>
+            </div>
+
             <div class="status-box">
                 <h3>Teams Answered</h3>
                 <div class="value" id="answeredCount">0</div>
