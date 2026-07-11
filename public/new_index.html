@@ -27,18 +27,20 @@
         .header {
             text-align: center;
             color: white;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
+            position: relative;
         }
 
         .header h1 {
-            font-size: 48px;
-            margin-bottom: 10px;
+            font-size: 32px;
+            margin: 0;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
         .header p {
-            font-size: 18px;
+            font-size: 14px;
             opacity: 0.9;
+            margin: 2px 0 0 0;
         }
 
         .layout {
@@ -316,14 +318,14 @@
     <div id="dashboardContainer" class="hidden">
     <div class="container">
         <div class="header">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 5px;">
                 <img src="/images/trivialogo.png" alt="Martlet Logo" style="width: 50px; height: 50px;">
                 <div>
-                    <h1 style="margin: 0;">Martlet Trivia Master</h1>
-                    <p style="margin: 5px 0 0 0;">Host Dashboard</p>
+                    <h1>Martlet Trivia Master</h1>
+                    <p>Host Dashboard</p>
                 </div>
+                <button onclick="logout()" style="background: #999; padding: 6px 12px; font-size: 11px; border-radius: 5px; height: fit-content; white-space: nowrap;">🔒 Logout</button>
             </div>
-            <button onclick="logout()" style="position: absolute; top: 20px; right: 20px; background: #999; padding: 8px 15px; font-size: 12px; border-radius: 5px;">🔒 Logout</button>
         </div>
 
         <div class="layout">
