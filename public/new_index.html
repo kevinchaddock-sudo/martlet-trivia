@@ -203,6 +203,10 @@
             color: #856404;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
         .full-width {
             grid-column: 1 / -1;
         }
@@ -410,7 +414,17 @@
             </div>
 
             <div class="controls">
+                <button onclick="startTimer()" id="startTimerBtn" style="width: 100%;">⏱️ Start Timer</button>
+                <button onclick="pauseResumeTimer()" id="pauseTimerBtn" style="width: 100%; background: #666; cursor: not-allowed;" disabled>⏸️ Pause</button>
                 <button onclick="revealAnswer()">✓ Reveal Answer</button>
+            </div>
+
+            <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: center; display: none;" id="timerDisplay">
+                <h2 style="color: #856404; margin: 0; font-size: 48px;" id="timerText">1:00</h2>
+                <p style="color: #856404; margin: 5px 0 0 0; font-size: 14px;">Time Remaining</p>
+            </div>
+
+            <div class="controls">
                 <button onclick="nextQuestion()">→ Next Question</button>
                 <button onclick="endGame()" style="background: #dc3545;">⏹️ End Game</button>
             </div>
@@ -470,6 +484,9 @@
         const socket = io();
         let questions = [];
         let gameActive = false;
+        let timerInterval = null;
+        let timeRemaining = 60;
+        let timerPaused = false;
 
         socket.on('connect', () => console.log('✓ Connected to server'));
         socket.on('host:answer-received', (data) => {
@@ -579,6 +596,7 @@
         }
 
         function revealAnswer() {
+            stopTimer();
             socket.emit('host:reveal-answer', {});
             document.getElementById('leaderboardDisplay').style.display = 'block';
         }
@@ -587,12 +605,14 @@
             document.getElementById('answersList').innerHTML = '<p style="color: #999;">Waiting for answers...</p>';
             document.getElementById('answeredCount').textContent = '0';
             document.getElementById('leaderboardDisplay').style.display = 'none';
+            stopTimer();
             socket.emit('host:next-question');
         }
 
         function endGame() {
             if (confirm('End the game?')) {
                 gameActive = false;
+                stopTimer();
                 document.getElementById('gamePanel').classList.add('hidden');
                 document.getElementById('resultsPanel').classList.remove('hidden');
                 socket.emit('host:end-game');
@@ -614,6 +634,83 @@
                 document.getElementById('answersList').innerHTML = '<p style="color: #999;">Waiting for answers...</p>';
                 document.getElementById('answeredCount').textContent = '0';
                 document.getElementById('questionNumber').textContent = 'Question 1';
+                
+                // Reset timer
+                stopTimer();
+            }
+        }
+
+        function startTimer() {
+            if (timerInterval) return; // Timer already running
+            
+            timeRemaining = 60;
+            timerPaused = false;
+            document.getElementById('timerDisplay').style.display = 'block';
+            document.getElementById('startTimerBtn').disabled = true;
+            document.getElementById('pauseTimerBtn').disabled = false;
+            document.getElementById('pauseTimerBtn').style.background = '#ff9800';
+            document.getElementById('pauseTimerBtn').style.cursor = 'pointer';
+            document.getElementById('pauseTimerBtn').textContent = '⏸️ Pause';
+            
+            // Emit to server to start broadcasting timer
+            socket.emit('host:start-timer');
+            
+            // Local timer for display
+            timerInterval = setInterval(() => {
+                if (!timerPaused) {
+                    timeRemaining--;
+                    updateTimerDisplay();
+                    
+                    if (timeRemaining <= 0) {
+                        stopTimer();
+                    }
+                }
+            }, 1000);
+        }
+
+        function pauseResumeTimer() {
+            if (!timerInterval) return;
+            
+            timerPaused = !timerPaused;
+            socket.emit('host:pause-resume-timer');
+            
+            if (timerPaused) {
+                document.getElementById('pauseTimerBtn').textContent = '▶️ Resume';
+                document.getElementById('pauseTimerBtn').style.background = '#4caf50';
+            } else {
+                document.getElementById('pauseTimerBtn').textContent = '⏸️ Pause';
+                document.getElementById('pauseTimerBtn').style.background = '#ff9800';
+            }
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            document.getElementById('startTimerBtn').disabled = false;
+            document.getElementById('pauseTimerBtn').disabled = true;
+            document.getElementById('pauseTimerBtn').style.background = '#666';
+            document.getElementById('pauseTimerBtn').style.cursor = 'not-allowed';
+            document.getElementById('pauseTimerBtn').textContent = '⏸️ Pause';
+            timeRemaining = 60;
+            timerPaused = false;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timerText').textContent = display;
+            
+            // Change color when getting close
+            if (timeRemaining <= 10) {
+                document.getElementById('timerDisplay').style.background = '#f8d7da';
+            } else if (timeRemaining <= 30) {
+                document.getElementById('timerDisplay').style.background = '#fff3cd';
+            } else {
+                document.getElementById('timerDisplay').style.background = '#d1ecf1';
             }
         }
 

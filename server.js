@@ -33,6 +33,11 @@ const gameState = {
   scores: {}
 };
 
+// Timer state
+let timerInterval = null;
+let timeRemaining = 60;
+let timerPaused = false;
+
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -74,6 +79,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('host:next-question', () => {
+    clearGameTimer();
     if (gameState.currentQuestionIndex < gameState.questions.length - 1) {
       gameState.currentQuestionIndex++;
       gameState.answers = {};
@@ -91,6 +97,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('host:reveal-answer', (data) => {
+    clearGameTimer();
     const currentQ = gameState.questions[gameState.currentQuestionIndex];
     const scores = {};
 
@@ -115,6 +122,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('host:end-game', () => {
+    clearGameTimer();
     gameState.isGameActive = false;
     io.emit('game:ended', { scores: calculateFinalScores() });
     console.log('[Host] Game ended');
@@ -129,7 +137,35 @@ io.on('connection', (socket) => {
     gameState.questions.forEach((q, idx) => {
       gameState.scores[idx] = {};
     });
+    clearGameTimer();
     console.log('[Host] Game reset for new group');
+  });
+
+  socket.on('host:start-timer', () => {
+    if (timerInterval) return; // Timer already running
+    
+    timeRemaining = 60;
+    timerPaused = false;
+    
+    timerInterval = setInterval(() => {
+      if (!timerPaused) {
+        timeRemaining--;
+        
+        // Broadcast to all players
+        io.emit('game:timer-tick', { timeRemaining });
+        
+        if (timeRemaining <= 0) {
+          clearGameTimer();
+        }
+      }
+    }, 1000);
+    
+    console.log('[Host] Timer started');
+  });
+
+  socket.on('host:pause-resume-timer', () => {
+    timerPaused = !timerPaused;
+    console.log(`[Host] Timer ${timerPaused ? 'paused' : 'resumed'}`);
   });
 
   // Player events
@@ -162,6 +198,15 @@ io.on('connection', (socket) => {
 });
 
 // Helper functions
+function clearGameTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  timeRemaining = 60;
+  timerPaused = false;
+}
+
 function calculateLeaderboard() {
   const leaderboard = {};
   Object.keys(gameState.teams).forEach(playerId => {

@@ -165,20 +165,7 @@
         }
 
         .hidden {
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.4s ease-in-out;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            /* display: none; */
-        }
-        .visible {
-            opacity: 1;
-            pointer-events: auto;
-            transition: opacity 0.4s ease-in-out;
-            position: static;
+            display: none;
         }
 
         .team-name-display {
@@ -212,6 +199,36 @@
             font-size: 28px;
             margin: 10px 0;
         }
+
+        .timer-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .timer-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #2196F3);
+            width: 100%;
+            transition: width 0.1s linear, background 0.3s;
+        }
+
+        .timer-bar.warning {
+            background: linear-gradient(90deg, #ff9800, #f44336);
+        }
+
+        .timer-locked {
+            color: #f44336;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -243,6 +260,17 @@
             <!-- Question Screen -->
             <div id="questionScreen" class="hidden">
                 <div class="team-name-display" id="displayTeamName2"></div>
+                
+                <!-- Progress Bar (Timer) -->
+                <div class="timer-bar-container">
+                    <div class="timer-bar" id="timerBar"></div>
+                </div>
+                
+                <!-- Timer Locked Message -->
+                <div class="timer-locked hidden" id="timerLockedMsg">
+                    ⏱️ Time locked - No more answers accepted
+                </div>
+
                 <div class="question-box">
                     <h2 id="questionText"></h2>
                     <div class="options" id="optionsContainer"></div>
@@ -268,26 +296,51 @@
             </div>
         </div>
     </div>
-    
+
     <script>
         const socket = io();
         let currentTeamName = '';
         let selectedAnswer = null;
         let playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        let timerLocked = false;
+        let totalTime = 60;
+        let timeRemaining = 60;
 
         socket.on('connect', () => console.log('✓ Connected to server'));
 
         socket.on('game:started', (data) => {
             showScreen('questionScreen');
             displayQuestion(data.question);
+            timerLocked = false;
+            timeRemaining = 60;
+            document.getElementById('timerLockedMsg').classList.add('hidden');
+            document.getElementById('submitBtn').disabled = false;
+            resetTimerBar();
         });
 
         socket.on('game:next-question', (data) => {
             selectedAnswer = null;
             document.getElementById('answerStatus').textContent = 'Select an answer above';
-            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').disabled = false;
+            timerLocked = false;
+            timeRemaining = 60;
+            document.getElementById('timerLockedMsg').classList.add('hidden');
             showScreen('questionScreen');
             displayQuestion(data.question);
+            resetTimerBar();
+        });
+
+        socket.on('game:timer-tick', (data) => {
+            timeRemaining = data.timeRemaining;
+            updateTimerBar();
+            
+            // Lock answers after 30 seconds
+            if (timeRemaining <= 30 && !timerLocked) {
+                timerLocked = true;
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('timerLockedMsg').classList.remove('hidden');
+                document.getElementById('answerStatus').textContent = 'Time locked - waiting for reveal...';
+            }
         });
 
         socket.on('game:answer-revealed', (data) => {
@@ -350,6 +403,8 @@
         }
 
         function selectAnswer(idx) {
+            if (timerLocked) return; // Can't select if time is locked
+            
             selectedAnswer = idx;
             document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('selected'));
             document.getElementById('option_' + idx).classList.add('selected');
@@ -358,7 +413,7 @@
         }
 
         function submitAnswer() {
-            if (selectedAnswer === null) return;
+            if (selectedAnswer === null || timerLocked) return;
             socket.emit('player:answer', {
                 playerId,
                 teamName: currentTeamName,
@@ -368,17 +423,28 @@
             document.getElementById('submitBtn').disabled = true;
         }
 
-        function showScreen(screenId) {
-        document.querySelectorAll('[id$="Screen"]').forEach(el => {
-            el.classList.add('hidden');
-            el.classList.remove('visible');
-        });
-        document.getElementById(screenId).classList.remove('hidden');
-        document.getElementById(screenId).classList.add('visible');
-    }
+        function resetTimerBar() {
+            document.getElementById('timerBar').style.width = '100%';
+            document.getElementById('timerBar').classList.remove('warning');
+        }
 
-    // Initialize - show join screen on load with fade
-    document.getElementById('joinScreen').classList.add('visible');
+        function updateTimerBar() {
+            const percentage = (timeRemaining / 60) * 100;
+            const bar = document.getElementById('timerBar');
+            bar.style.width = percentage + '%';
+            
+            // Change color to warning when under 30 seconds
+            if (timeRemaining <= 30) {
+                bar.classList.add('warning');
+            } else {
+                bar.classList.remove('warning');
+            }
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('[id$="Screen"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
