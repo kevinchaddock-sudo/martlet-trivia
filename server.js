@@ -120,6 +120,18 @@ io.on('connection', (socket) => {
     console.log('[Host] Game ended');
   });
 
+  socket.on('host:reset-game', () => {
+    gameState.isGameActive = false;
+    gameState.currentQuestionIndex = 0;
+    gameState.teams = {};
+    gameState.answers = {};
+    gameState.scores = {};
+    gameState.questions.forEach((q, idx) => {
+      gameState.scores[idx] = {};
+    });
+    console.log('[Host] Game reset for new group');
+  });
+
   // Player events
   socket.on('player:join', (data) => {
     const { teamName, playerId } = data;
